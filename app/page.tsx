@@ -1,65 +1,136 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+
+interface Price {
+  id: string;
+  lowestPrice: number;
+  avgPrice: number;
+  timestamp: string;
+}
+
+interface Item {
+  id: string;
+  name: string;
+  targetPrice: number;
+  prices: Price[];
+}
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/items")
+      .then((r) => r.json())
+      .then((data) => {
+        setItems(data);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-950 text-white p-8">
+        <p className="text-gray-400">Loading...</p>
       </main>
-    </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-gray-950 text-white p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2">Donut Tracker</h1>
+        <p className="text-gray-400 mb-8">Auction house price monitor</p>
+
+        {items.length === 0 ? (
+          <p className="text-gray-400">No items being tracked yet.</p>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {items.map((item) => {
+              const latest = item.prices[0];
+              const isGoodTime =
+                latest && latest.lowestPrice >= item.targetPrice * 0.85;
+
+              return (
+                <div
+                  key={item.id}
+                  className="bg-gray-900 rounded-xl p-6 border border-gray-800"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold capitalize">
+                      {item.name}
+                    </h2>
+                    <span
+                      className={`text-sm font-medium px-3 py-1 rounded-full ${
+                        isGoodTime
+                          ? "bg-green-900 text-green-300"
+                          : "bg-red-900 text-red-300"
+                      }`}
+                    >
+                      {isGoodTime ? "Good time to sell" : "Not yet"}
+                    </span>
+                  </div>
+
+                  {latest ? (
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-400 mb-1">Lowest listing</p>
+                        <p className="text-white font-mono text-lg">
+                          {latest.lowestPrice.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 mb-1">Average price</p>
+                        <p className="text-white font-mono text-lg">
+                          {latest.avgPrice.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 mb-1">Your target</p>
+                        <p className="text-white font-mono text-lg">
+                          {item.targetPrice.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">
+                      No price data yet — hit /api/poll to fetch prices
+                    </p>
+                  )}
+
+                  {item.prices.length > 1 && (
+                    <div className="mt-4">
+                      <p className="text-gray-400 text-xs mb-2">
+                        Last {item.prices.length} snapshots (lowest price)
+                      </p>
+                      <div className="flex items-end gap-1 h-12">
+                        {[...item.prices].reverse().map((p, i) => {
+                          const max = Math.max(
+                            ...item.prices.map((x) => x.lowestPrice)
+                          );
+                          const height = Math.max(
+                            4,
+                            (p.lowestPrice / max) * 48
+                          );
+                          return (
+                            <div
+                              key={i}
+                              className="bg-blue-500 rounded-sm flex-1"
+                              style={{ height: `${height}px` }}
+                              title={p.lowestPrice.toLocaleString()}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
